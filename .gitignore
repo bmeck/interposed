@@ -1,0 +1,12 @@
+*.out
+*.o
+*.dylib
+*.lib
+*.dll
+*.so
+*.a
+node_modules
+*.DS_Store
+*.log
+*.swp
+
