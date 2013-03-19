@@ -36,6 +36,26 @@ void sockaddr_json(struct sockaddr_in *in_addr, char addr_str[256]) {
   snprintf(addr_str, 256, "{\"port\":%d,\"address\":\"%s\"}", ntohs(in_addr->sin_port), str);
 }
 
+int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+{
+  static const int (*original_bind) (int, const struct sockaddr *, socklen_t) = NULL;
+  if (!original_bind) {
+    original_bind = dlsym(RTLD_NEXT, "bind");
+  }
+  if (addr->sa_family == AF_INET) {
+    struct sockaddr_in* in_addr = (struct sockaddr_in*)addr;
+    int desired = in_addr->sin_port;
+    int result = original_bind(sockfd, addr, addrlen);
+    while (result = -1 && (errno == EADDRINUSE || errno == EACCES)) {
+      in_addr->sin_port = ntohs(htons(in_addr->sin_port)+1);
+      in_addr->sin_addr.s_addr = INADDR_ANY;
+      result = original_bind(sockfd, addr, addrlen);
+    }
+    return result;
+  }
+  return original_bind(sockfd, addr, addrlen);
+}
+
 int listen(int sockfd, int backlog)
 {
   static const int (*original_listen) (int, int) = NULL;
