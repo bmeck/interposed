@@ -27,7 +27,9 @@ static void __interposed_init()
 
 #define RTLD_SEND(params, ret) __interposed_RTLD_SEND(__FUNCTION__, params, ret)
 void __interposed_RTLD_SEND(const char name[], char* params, char* ret) {
-  dprintf(__interposed_CHANNEL_FD, "{\"method\":\"%s\",\"params\":%s,\"result\":%s}\n",name,params,ret);
+  char msg[4096];
+  int length = sprintf(msg, "{\"method\":\"%s\",\"params\":%s,\"result\":%s}\n",name,params,ret);
+  write(__interposed_CHANNEL_FD,msg,length);
 }
 
 void sockaddr_json(struct sockaddr_in *in_addr, char addr_str[256]) {
