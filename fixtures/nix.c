@@ -16,7 +16,13 @@ __attribute__((constructor))
 static void __interposed_init()
 {
   char* env_channel_fd = getenv("NODE_CHANNEL_FD");
-  sscanf(env_channel_fd,"%d", &__interposed_CHANNEL_FD);
+  int found = 0;
+  if (env_channel_fd) {
+    found = sscanf(env_channel_fd,"%d", &__interposed_CHANNEL_FD);
+  }
+  if (!found) {
+    __interposed_CHANNEL_FD = 1;
+  }
 }
 
 #define RTLD_SEND(params, ret) __interposed_RTLD_SEND(__FUNCTION__, params, ret)
