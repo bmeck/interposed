@@ -66,18 +66,19 @@ int listen(int sockfd, int backlog)
     original_listen = dlsym(RTLD_NEXT, "listen");
   }
   int result = original_listen(sockfd, backlog);
-  struct sockaddr_in addr;
-  static socklen_t addr_len = sizeof addr;
-  int len = getsockname(sockfd, (struct sockaddr*)&addr, &addr_len);
-  if (__interposed_active && len <= sizeof addr && addr.sin_family == AF_INET) {
-    char ret[15];
-    snprintf(ret, 15, "%d", result);
-    char params[512];
-    char addr_str[256];
-    sockaddr_json(&addr, addr_str);
-    snprintf(params, 512, "{\"fd\":%d,\"address\":%s,\"backlog\":%d]", sockfd, addr_str, backlog);
-    RTLD_SEND(params,ret);
-    // return the result
+  if (__interposed_active) {
+    struct sockaddr_in addr;
+    static socklen_t addr_len = sizeof addr;
+    int len = getsockname(sockfd, (struct sockaddr*)&addr, &addr_len);
+    if(len <= sizeof addr && addr.sin_family == AF_INET) {
+      char ret[15];
+      snprintf(ret, 15, "%d", result);
+      char params[512];
+      char addr_str[256];
+      sockaddr_json(&addr, addr_str);
+      snprintf(params, 512, "{\"fd\":%d,\"address\":%s,\"backlog\":%d]", sockfd, addr_str, backlog);
+      RTLD_SEND(params,ret);
+    }
   }
   return result;
 }
