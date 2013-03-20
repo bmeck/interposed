@@ -8,6 +8,7 @@
 #include <errno.h>
 
 static int __interposed_CHANNEL_FD = 1;
+static int __interposed_active = 0;
 
 #pragma CALL_ON_MODULE_BIND initptrs
 #pragma CALL_ON_LOAD initptrs
@@ -20,8 +21,8 @@ static void __interposed_init()
   if (env_channel_fd) {
     found = sscanf(env_channel_fd,"%d", &__interposed_CHANNEL_FD);
   }
-  if (!found) {
-    __interposed_CHANNEL_FD = 1;
+  if (found) {
+    __interposed_active = 1;
   }
 }
 
@@ -44,7 +45,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
   if (!original_bind) {
     original_bind = dlsym(RTLD_NEXT, "bind");
   }
-  if (addr->sa_family == AF_INET) {
+  if (__interposed_active && addr->sa_family == AF_INET) {
     struct sockaddr_in* in_addr = (struct sockaddr_in*)addr;
     int desired = in_addr->sin_port;
     int result = original_bind(sockfd, addr, addrlen);
@@ -65,13 +66,13 @@ int listen(int sockfd, int backlog)
     original_listen = dlsym(RTLD_NEXT, "listen");
   }
   int result = original_listen(sockfd, backlog);
-  char ret[15];
-  snprintf(ret, 15, "%d", result);
-  char params[512];
   struct sockaddr_in addr;
   static socklen_t addr_len = sizeof addr;
   int len = getsockname(sockfd, (struct sockaddr*)&addr, &addr_len);
-  if (len <= sizeof addr && addr.sin_family == AF_INET) {
+  if (__interposed_active && len <= sizeof addr && addr.sin_family == AF_INET) {
+    char ret[15];
+    snprintf(ret, 15, "%d", result);
+    char params[512];
     char addr_str[256];
     sockaddr_json(&addr, addr_str);
     snprintf(params, 512, "{\"fd\":%d,\"address\":%s,\"backlog\":%d]", sockfd, addr_str, backlog);
