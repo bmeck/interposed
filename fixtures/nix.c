@@ -4,7 +4,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
-//#include <unistd.h>
+#include <sys/un.h>
+#include <unistd.h>
 //#include <sys/types.h>
 
 static int __interposed_CHANNEL_FD = 1;
@@ -16,13 +17,27 @@ static int __interposed_active = 0;
 __attribute__((constructor))
 static void __interposed_init()
 {
-  char* env_channel_fd = getenv("NODE_CHANNEL_FD");
+  char* env_channel_fd = getenv("INTERPOSED_IPC");
   int found = 0;
   if (env_channel_fd) {
-    found = sscanf(env_channel_fd,"%d", &__interposed_CHANNEL_FD);
-  }
-  if (found) {
-    __interposed_active = 1;
+    struct sockaddr_un address;
+    __interposed_CHANNEL_FD = socket(PF_UNIX, SOCK_STREAM, 0);
+    if(__interposed_CHANNEL_FD < 0) {
+      return;
+    }
+    
+    /* start with a clean address structure */
+    memset(&address, 0, sizeof(struct sockaddr_un));
+  
+    address.sun_family = AF_UNIX;
+    snprintf(address.sun_path, sizeof(address.sun_path) - 1, "%s", env_channel_fd);
+         
+    if (connect(__interposed_CHANNEL_FD, (struct sockaddr *) &address, sizeof(struct sockaddr_un)) != 0) {
+      return;
+    }
+    else {
+      __interposed_active = 1;
+    }
   }
 }
 
